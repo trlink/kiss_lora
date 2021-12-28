@@ -1,0 +1,14 @@
+[Unit]
+Description=Serial to LoRa Bridge
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=pi
+ExecStart=/bin/bash -c 'sudo /usr/bin/seriallora/start.sh'
+
+[Install]
+WantedBy=multi-user.target
