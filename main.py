@@ -17,7 +17,7 @@ logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 g_nErrCount = 0;
 g_log = logging.getLogger("main")
-g_nMaxProtoLen = 128
+g_nMaxProtoLen = 250
 g_modem = None
 g_strDev = ""
 g_nRST = 0;
@@ -94,7 +94,8 @@ if __name__ == "__main__":
         g_nBandwidth = int(config["lora"]["BW"])
         g_bPreamble = int(config["lora"]["Preamble"])
         g_nSyncWord = int(config["lora"]["SyncWord"])
-        g_nCodingRate = int(config["lora"]["CodingRate"])      
+        g_nCodingRate = int(config["lora"]["CodingRate"])
+        g_nMaxProtoLen = int(config["ax25"]["PacketSize"])
 
     except:
         g_log.error("could not read config, check config!")
@@ -123,16 +124,36 @@ if __name__ == "__main__":
             
             if (len(bData) > 0):
                 
-                if (len(bData) <= 250):
+                if (len(bData) <= g_nMaxProtoLen):
                 
                     g_log.debug("Serial: received: " + str(len(bData)))
                     kissSerial.addData(bData)
                 
                 else:
-                    
                     g_log.warning("Serial: packet over max trx size, received: " + str(len(bData)))
-            
-            
+                    
+                    #packets are ancapsulated by 0xC0
+                    #split packets and add them to the queue
+                    bPacket = bytearray(b'')
+                    bStart = True
+                    
+                    for b in bData:
+                         bPacket.append(b)
+                         
+                         if b == 0xC0:
+                            if bStart == True:
+                                bStart = False
+                            else:
+                                
+                                g_log.debug("Serial: splitted packet size: " + str(len(bPacket)))
+                                
+                                kissSerial.addData(bPacket)
+                                bStart = True
+                                bPacket = bytearray(b'')
+                                
+                    if len(bPacket) > 0:
+                        g_log.error("Serial: could not splitt packet - lost data: " + str(len(bPacket)))
+                        
             bHavePacket = kissSerial.haveData()      
                     
             if bHavePacket == True:
